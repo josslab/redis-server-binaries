@@ -137,7 +137,7 @@ jobs:
       - name: Download source code
         run: |
           curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
-          curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-arm64_linux.tar.xz"
+          curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz"
           mkdir upx
           tar -xf upx.tar.xz -C upx --strip-components 1
         # After install libssl.deb arm, use apt will be error
