@@ -1,0 +1,4 @@
+# Redis Binaris
+### With the powerful automated building capability of GitHub Actions, we can compile the latest version of Redis binaries in real-time. 
+The entire compilation process is completely transparent and open, with the compilation script located in the [.github/workflows/](https://github.com/tran4774/redis-binaries/tree/main/.github/workflows) directory and the compilation logs available on the [Actions](https://github.com/tran4774/redis-binaries/actions) page. In addition, we have added a hash calculation step when the compilation is completed, and the result is printed in the log. This is unmodifiable and recorded in the release page. You can verify the hash value of the downloaded file against the log and release page.  
+Our project is absolutely pure and without any hidden features, and can withstand the scrutiny of all experts. If you have any good ideas, please feel free to communicate with us.  

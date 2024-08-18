@@ -1,0 +1,239 @@
+name: Build Redis Binaries
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Version'
+        required: true
+        default: "7.4.0"
+        type: string
+      make_latest:
+        description: 'Latest'
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Pre-release'
+        default: false
+        type: boolean
+
+env:
+  RELEASE_VERSION: ${{ inputs.tag_name }}
+  REDIS_DIST: redis-${{ inputs.tag_name }}
+  REDIS_SOURCE_DOWNLOAD_URL: https://download.redis.io/releases/redis-${{inputs.tag_name}}.tar.gz
+  BASE_CFLAGS: -Wno-char-subscripts -O0 -Wno-misleading-indentation
+        
+jobs:
+  build-windows-x86_64:
+    runs-on: windows-latest
+    env:
+      OS: windows
+      ARCH: x86_64
+      REDIS_DIST_MSYS2: ${{ inputs.tag_name }}-msys2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download source code
+        run: |
+          $tag_name="${{ inputs.tag_name }}"
+          (ConvertFrom-Json(Invoke-WebRequest -Headers @{'Authorization' = 'Bearer ${{ secrets.GITHUB_TOKEN }}'} -Uri "https://api.github.com/repos/redis/redis/releases/tags/$($tag_name.Trim())").Content).body -Replace '\(\#', '(https://github.com/redis/redis/pull/' | Set-Content .\redis_latest_body.txt
+          Invoke-WebRequest -Uri ${{env.REDIS_SOURCE_DOWNLOAD_URL}} -OutFile redis-$($tag_name.Trim()).tar.gz
+      - uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: gcc make pkg-config libopenssl openssl-devel zip
+          cache: true
+      - name: msys2 Build Redis
+        if: ${{ success() }}
+        run: |
+          WORKSPACE=$(pwd)
+          mkdir ${{ env.REDIS_DIST }}-msys2
+          sed -i 's/__GNU_VISIBLE/1/' /usr/include/dlfcn.h
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh
+          cd ..
+          make CFLAGS="${{env.BASE_CFLAGS}}" USE_JEMALLOC=no BUILD_TLS=yes redis-server
+          find . -mindepth 1 -maxdepth 2 -type f -regex '.*\(\.exe\|\.conf\)' -exec cp -f "{}" "$WORKSPACE/${{ env.REDIS_DIST }}-msys2" \;
+          cd $WORKSPACE
+          cp /usr/bin/msys-2.0.dll /usr/bin/msys-crypto-3.dll /usr/bin/msys-ssl-3.dll ${{ env.REDIS_DIST }}-msys2
+          sed -i 's/pidfile \/var\/run/pidfile ./' ${{ env.REDIS_DIST }}-msys2/redis.conf
+          zip -q -r redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}-msys2.zip ${{ env.REDIS_DIST }}-msys2
+        shell: msys2 {0}
+      - uses: actions/upload-artifact@v4
+        name: Upload artifact
+        with:
+          name: redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}-msys2.zip
+          path: redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}-msys2.zip
+
+  build-linux-amd64:
+    runs-on: ubuntu-22.04
+    env:
+      OS: linux
+      ARCH: amd64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download source code
+        run: |
+          curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
+          curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz"
+          mkdir upx
+          tar -xf upx.tar.xz -C upx --strip-components 1
+      - name: Make
+        run: |
+          WORKSPACE=$(pwd)
+          echo ${{ env.REDIS_DIST }}-build
+          mkdir -p ${{ env.REDIS_DIST }}-build
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
+          make CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
+          ../upx/upx -9k --lzma src/redis-server
+          cp src/redis-server "$WORKSPACE/${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}"
+      - uses: actions/upload-artifact@v4
+        name: Upload artifact
+        with:
+          name: redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+          path: ${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+
+  build-linux-i386:
+    runs-on: ubuntu-22.04
+    env:
+      OS: linux
+      ARCH: i386
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download source code
+        run: |
+          curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
+          curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz"
+          mkdir upx
+          tar -xf upx.tar.xz -C upx --strip-components 1
+      - name: Setup 32bit
+        run: |
+          sudo dpkg --add-architecture i386 
+          sudo apt-get update -y && sudo apt-get install -y libc6-dev-i386 libssl-dev:i386
+      - name: Make
+        run: |
+          WORKSPACE=$(pwd)
+          echo ${{ env.REDIS_DIST }}-build
+          mkdir -p ${{ env.REDIS_DIST }}-build
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
+          make CFLAGS="${{env.BASE_CFLAGS}} -m32 -march=native" LDFLAGS="-m32" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
+          ../upx/upx -9k --lzma src/redis-server
+          cp src/redis-server "$WORKSPACE/${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}"
+      - uses: actions/upload-artifact@v4
+        name: Upload artifact
+        with:
+          name: redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+          path: ${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+
+  build-linux-aarch64:
+    runs-on: ubuntu-22.04
+    env:
+      OS: linux
+      ARCH: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download source code
+        run: |
+          curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
+          curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-arm64_linux.tar.xz"
+          mkdir upx
+          tar -xf upx.tar.xz -C upx --strip-components 1
+      - uses: uraimo/run-on-arch-action@v2
+        name: Make on aarch64
+        with:
+          arch: aarch64
+          distro: ubuntu22.04
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          install: |
+            apt-get update -y && apt-get install -y build-essential libssl-dev
+          run: |
+            WORKSPACE=$(pwd)
+            echo ${{ env.REDIS_DIST }}-build
+            mkdir -p ${{ env.REDIS_DIST }}-build
+            tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+            cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
+            make CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
+            ../upx/upx -9k --lzma src/redis-server
+            cp src/redis-server "$WORKSPACE/${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}"
+      - uses: actions/upload-artifact@v4
+        name: Upload artifact
+        with:
+          name: redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+          path: ${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+
+  build-macos-aarch64:
+    runs-on: macos-14
+    env:
+      OS: macos
+      ARCH: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download source code
+        run: |
+          curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+      - name: Make
+        run: |
+          WORKSPACE=$(pwd)
+          mkdir -p ${{ env.REDIS_DIST }}-build
+          cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
+          make CFLAGS="${{env.BASE_CFLAGS}} -I$(brew --prefix openssl@3)/include" LDFLAGS="-L$(brew --prefix openssl@3)/lib" BUILD_TLS=yes redis-server
+          cp src/redis-server "$WORKSPACE/${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}"
+      - uses: actions/upload-artifact@v4
+        name: Upload artifact
+        with:
+          name: redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+          path: ${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+
+  build-macos-x86_64:
+    runs-on: macos-13
+    env:
+      OS: macos
+      ARCH: x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download source code
+        run: |
+          curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+      - name: Make
+        run: |
+          WORKSPACE=$(pwd)
+          mkdir -p ${{ env.REDIS_DIST }}-build
+          cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
+          make CFLAGS="${{env.BASE_CFLAGS}} -I$(brew --prefix openssl@3)/include" LDFLAGS="-L$(brew --prefix openssl@3)/lib" BUILD_TLS=yes redis-server
+          cp src/redis-server "$WORKSPACE/${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}"
+      - uses: actions/upload-artifact@v4
+        name: Upload artifact
+        with:
+          name: redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+          path: ${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
+
+  release:
+    runs-on: ubuntu-22.04
+    needs: 
+      - build-windows-x86_64
+      - build-linux-amd64
+      - build-linux-i386
+      - build-linux-aarch64
+      - build-macos-aarch64
+      - build-macos-x86_64
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ env.REDIS_DIST }}-build
+          merge-multiple: true
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ env.RELEASE_VERSION }}
+          tag_name: ${{ env.RELEASE_VERSION }}
+          # body_path: redis_latest_body.txt
+          make_latest: ${{ inputs.make_latest }}
+          prerelease: ${{ inputs.prerelease }}
+          files: ${{ env.REDIS_DIST }}-build/*
