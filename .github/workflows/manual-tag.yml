@@ -140,11 +140,12 @@ jobs:
           curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-arm64_linux.tar.xz"
           mkdir upx
           tar -xf upx.tar.xz -C upx --strip-components 1
-        # After install libssl.deb, use apt will be error
+        # After install libssl.deb arm, use apt will be error
       - name: Setup build
         run: |
           curl -o libssl.deb "${{ env.LIBSSL_DEB_ARM64 }}"
           sudo apt-get update -y && sudo apt-get install -y crossbuild-essential-arm64
+          sudo apt-get remove -y libssl-dev
           sudo dpkg --add-architecture arm64
           sudo dpkg -i --force-all libssl.deb
       - name: Make on aarch64
