@@ -39,7 +39,6 @@ jobs:
           Invoke-WebRequest -Uri ${{env.REDIS_SOURCE_DOWNLOAD_URL}} -OutFile redis-$($tag_name.Trim()).tar.gz
       - uses: msys2/setup-msys2@v2
         with:
-          update: true
           install: gcc make pkg-config libopenssl openssl-devel zip
           cache: true
       - name: msys2 Build Redis
