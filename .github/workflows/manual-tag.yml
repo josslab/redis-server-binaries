@@ -239,6 +239,9 @@ jobs:
           make_latest: ${{ inputs.make_latest }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ env.REDIS_DIST }}-build/*
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Update last known release
         run: |
