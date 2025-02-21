@@ -19,7 +19,7 @@ jobs:
         run: |
           LATEST_RELEASE=$(curl -s https://api.github.com/repos/redis/redis/releases/latest | jq -r '.tag_name')
           echo "Latest Redis release: $LATEST_RELEASE"
-          echo "::set-output name=latest_release::$LATEST_RELEASE"
+          echo "latest_release=$LATEST_RELEASE" >> $GITHUB_OUTPUT
 
       - name: Compare with last known release
         id: compare-release
@@ -28,10 +28,10 @@ jobs:
           echo "Last known Redis release: $LAST_KNOWN_RELEASE"
           if [[ "${{ steps.fetch-release.outputs.latest_release }}" != "$LAST_KNOWN_RELEASE" ]]; then
             echo "New release found: ${{ steps.fetch-release.outputs.latest_release }}"
-            echo "::set-output name=new_release_found::true"
+            echo "new_release_found=true" >> $GITHUB_OUTPUT
           else
             echo "No new release found."
-            echo "::set-output name=new_release_found::false"
+            echo "new_release_found=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Trigger build workflow
