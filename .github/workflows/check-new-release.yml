@@ -9,7 +9,8 @@ jobs:
   check-new-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Required to push changes to the repository
+      actions: write  # Required to trigger the workflow_dispatch event
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
