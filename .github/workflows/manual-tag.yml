@@ -20,7 +20,7 @@ on:
 env:
   RELEASE_VERSION: ${{ inputs.tag_name }}
   REDIS_DIST: redis-${{ inputs.tag_name }}
-  REDIS_SOURCE_DOWNLOAD_URL: https://github.com/redis/redis/archive/refs/tags/${{inputs.tag_name}}.tar.gz
+  REDIS_SOURCE_DOWNLOAD_URL: https://download.redis.io/releases/redis-${{inputs.tag_name}}.tar.gz
   BASE_CFLAGS: -Wno-char-subscripts -O0 -Wno-misleading-indentation
         
 jobs:
@@ -81,7 +81,7 @@ jobs:
           WORKSPACE=$(pwd)
           echo ${{ env.REDIS_DIST }}-build
           mkdir -p ${{ env.REDIS_DIST }}-build
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
           make CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
@@ -114,7 +114,7 @@ jobs:
           WORKSPACE=$(pwd)
           echo ${{ env.REDIS_DIST }}-build
           mkdir -p ${{ env.REDIS_DIST }}-build
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
           make CFLAGS="${{env.BASE_CFLAGS}} -m32 -march=native" LDFLAGS="-m32" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
@@ -152,7 +152,7 @@ jobs:
           WORKSPACE=$(pwd)
           echo ${{ env.REDIS_DIST }}-build
           mkdir -p ${{ env.REDIS_DIST }}-build
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
           make CC="aarch64-linux-gnu-gcc" AR="aarch64-linux-gnu-gcc-ar" RANLIB="aarch64-linux-gnu-gcc-ranlib" CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
@@ -173,7 +173,7 @@ jobs:
       - name: Download source code
         run: |
           curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
       - name: Make
         run: |
           WORKSPACE=$(pwd)
@@ -197,7 +197,7 @@ jobs:
       - name: Download source code
         run: |
           curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
       - name: Make
         run: |
           WORKSPACE=$(pwd)
