@@ -52,7 +52,7 @@ jobs:
             const { data } = await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'build-redis-binaries.yml', # Replace with your workflow file name
+              workflow_id: 'manual-tag.yml',
               ref: context.ref,
               inputs: {
                 tag_name: '${{ steps.fetch-release.outputs.latest_release }}',
