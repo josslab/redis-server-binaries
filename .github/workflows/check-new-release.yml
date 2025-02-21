@@ -9,7 +9,6 @@ jobs:
   check-new-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to push changes to the repository
       actions: write  # Required to trigger the workflow_dispatch event
     steps:
       - name: Checkout repository
@@ -34,16 +33,6 @@ jobs:
             echo "No new release found."
             echo "::set-output name=new_release_found::false"
           fi
-
-      - name: Update last known release
-        if: steps.compare-release.outputs.new_release_found == 'true'
-        run: |
-          echo "${{ steps.fetch-release.outputs.latest_release }}" > .github/last_known_release.txt
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/last_known_release.txt
-          git commit -m "Update last known Redis release to ${{ steps.fetch-release.outputs.latest_release }}"
-          git push
 
       - name: Trigger build workflow
         if: steps.compare-release.outputs.new_release_found == 'true'

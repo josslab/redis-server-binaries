@@ -81,7 +81,7 @@ jobs:
           WORKSPACE=$(pwd)
           echo ${{ env.REDIS_DIST }}-build
           mkdir -p ${{ env.REDIS_DIST }}-build
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
           make CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
@@ -114,7 +114,7 @@ jobs:
           WORKSPACE=$(pwd)
           echo ${{ env.REDIS_DIST }}-build
           mkdir -p ${{ env.REDIS_DIST }}-build
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
           make CFLAGS="${{env.BASE_CFLAGS}} -m32 -march=native" LDFLAGS="-m32" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
@@ -152,7 +152,7 @@ jobs:
           WORKSPACE=$(pwd)
           echo ${{ env.REDIS_DIST }}-build
           mkdir -p ${{ env.REDIS_DIST }}-build
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
           make CC="aarch64-linux-gnu-gcc" AR="aarch64-linux-gnu-gcc-ar" RANLIB="aarch64-linux-gnu-gcc-ranlib" CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
@@ -173,7 +173,7 @@ jobs:
       - name: Download source code
         run: |
           curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
       - name: Make
         run: |
           WORKSPACE=$(pwd)
@@ -197,7 +197,7 @@ jobs:
       - name: Download source code
         run: |
           curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
-          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
+          tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz -C redis-${{ env.RELEASE_VERSION }} --strip-components 1
       - name: Make
         run: |
           WORKSPACE=$(pwd)
@@ -221,13 +221,14 @@ jobs:
       - build-macos-aarch64
       - build-macos-x86_64
     permissions:
-      contents: write
+      contents: write # Required to push changes to the repository
     steps:
       - name: Download all artifact
         uses: actions/download-artifact@v4
         with:
           path: ${{ env.REDIS_DIST }}-build
           merge-multiple: true
+
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -238,3 +239,12 @@ jobs:
           make_latest: ${{ inputs.make_latest }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ env.REDIS_DIST }}-build/*
+
+      - name: Update last known release
+        run: |
+          echo "${{ steps.fetch-release.outputs.latest_release }}" > .github/last_known_release.txt
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last_known_release.txt
+          git commit -m "Update last known Redis release to ${{ steps.fetch-release.outputs.latest_release }}"
+          git push
