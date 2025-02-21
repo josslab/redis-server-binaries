@@ -1,0 +1,63 @@
+name: Check for New Redis Release
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  check-new-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch latest Redis release
+        id: fetch-release
+        run: |
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/redis/redis/releases/latest | jq -r '.tag_name')
+          echo "Latest Redis release: $LATEST_RELEASE"
+          echo "::set-output name=latest_release::$LATEST_RELEASE"
+
+      - name: Compare with last known release
+        id: compare-release
+        run: |
+          LAST_KNOWN_RELEASE=$(cat .github/last_known_release.txt || echo "")
+          echo "Last known Redis release: $LAST_KNOWN_RELEASE"
+          if [[ "${{ steps.fetch-release.outputs.latest_release }}" != "$LAST_KNOWN_RELEASE" ]]; then
+            echo "New release found: ${{ steps.fetch-release.outputs.latest_release }}"
+            echo "::set-output name=new_release_found::true"
+          else
+            echo "No new release found."
+            echo "::set-output name=new_release_found::false"
+          fi
+
+      - name: Update last known release
+        if: steps.compare-release.outputs.new_release_found == 'true'
+        run: |
+          echo "${{ steps.fetch-release.outputs.latest_release }}" > .github/last_known_release.txt
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last_known_release.txt
+          git commit -m "Update last known Redis release to ${{ steps.fetch-release.outputs.latest_release }}"
+          git push
+
+      - name: Trigger build workflow
+        if: steps.compare-release.outputs.new_release_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-redis-binaries.yml', # Replace with your workflow file name
+              ref: context.ref,
+              inputs: {
+                tag_name: '${{ steps.fetch-release.outputs.latest_release }}',
+                make_latest: false,
+                prerelease: false
+              }
+            });
+            console.log(`Triggered workflow with release: ${{ steps.fetch-release.outputs.latest_release }}`);
