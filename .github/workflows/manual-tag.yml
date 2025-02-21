@@ -20,7 +20,7 @@ on:
 env:
   RELEASE_VERSION: ${{ inputs.tag_name }}
   REDIS_DIST: redis-${{ inputs.tag_name }}
-  REDIS_SOURCE_DOWNLOAD_URL: https://download.redis.io/releases/redis-${{inputs.tag_name}}.tar.gz
+  REDIS_SOURCE_DOWNLOAD_URL: https://github.com/redis/redis/archive/refs/tags/${{inputs.tag_name}}.tar.gz
   BASE_CFLAGS: -Wno-char-subscripts -O0 -Wno-misleading-indentation
         
 jobs:

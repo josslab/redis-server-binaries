@@ -1,0 +1,61 @@
+name: Check for New Redis Tag
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  check-new-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch latest Redis tag
+        id: fetch-tag
+        run: |
+          LATEST_TAG=$(curl -s https://api.github.com/repos/redis/redis/tags | jq -r '.[0].name')
+          echo "Latest Redis tag: $LATEST_TAG"
+          echo "::set-output name=latest_tag::$LATEST_TAG"
+
+      - name: Compare with last known tag
+        id: compare-tag
+        run: |
+          LAST_KNOWN_TAG=$(cat .github/last_known_tag.txt || echo "")
+          echo "Last known Redis tag: $LAST_KNOWN_TAG"
+          if [[ "${{ steps.fetch-tag.outputs.latest_tag }}" != "$LAST_KNOWN_TAG" ]]; then
+            echo "New tag found: ${{ steps.fetch-tag.outputs.latest_tag }}"
+            echo "::set-output name=new_tag_found::true"
+          else
+            echo "No new tag found."
+            echo "::set-output name=new_tag_found::false"
+          fi
+
+      - name: Update last known tag
+        if: steps.compare-tag.outputs.new_tag_found == 'true'
+        run: |
+          echo "${{ steps.fetch-tag.outputs.latest_tag }}" > .github/last_known_tag.txt
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last_known_tag.txt
+          git commit -m "Update last known Redis tag to ${{ steps.fetch-tag.outputs.latest_tag }}"
+          git push
+
+      - name: Trigger build workflow
+        if: steps.compare-tag.outputs.new_tag_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'manual-tag.yml',
+              ref: context.ref,
+              inputs: {
+                tag_name: '${{ steps.fetch-tag.outputs.latest_tag }}',
+                make_latest: false,
+                prerelease: false
+              }
+            });
+            console.log(`Triggered workflow with tag: ${{ steps.fetch-tag.outputs.latest_tag }}`);
