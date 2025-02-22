@@ -1,4 +1,4 @@
-name: Check for New Redis Release
+name: Check for New Redis Releases
 
 on:
   schedule:
@@ -6,48 +6,67 @@ on:
   workflow_dispatch: # Allow manual triggering
 
 jobs:
-  check-new-release:
+  check-new-releases:
     runs-on: ubuntu-latest
     permissions:
-      actions: write  # Required to trigger the workflow_dispatch event
+      contents: write
+      actions: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch latest Redis release
-        id: fetch-release
+      - name: Read last check timestamp
+        id: last-check
         run: |
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/redis/redis/releases/latest | jq -r '.tag_name')
-          echo "Latest Redis release: $LATEST_RELEASE"
-          echo "latest_release=$LATEST_RELEASE" >> $GITHUB_OUTPUT
-
-      - name: Compare with last known release
-        id: compare-release
-        run: |
-          LAST_KNOWN_RELEASE=$(cat .github/last_known_release.txt || echo "")
-          echo "Last known Redis release: $LAST_KNOWN_RELEASE"
-          if [[ "${{ steps.fetch-release.outputs.latest_release }}" != "$LAST_KNOWN_RELEASE" ]]; then
-            echo "New release found: ${{ steps.fetch-release.outputs.latest_release }}"
-            echo "new_release_found=true" >> $GITHUB_OUTPUT
+          if [ -f .github/last_check.txt ]; then
+            LAST_CHECK=$(cat .github/last_check.txt)
           else
-            echo "No new release found."
-            echo "new_release_found=false" >> $GITHUB_OUTPUT
+            LAST_CHECK="1970-01-01T00:00:00Z" # Default to Unix epoch if file doesn't exist
           fi
+          echo "LAST_CHECK=$LAST_CHECK" >> $GITHUB_OUTPUT
 
-      - name: Trigger build workflow
-        if: steps.compare-release.outputs.new_release_found == 'true'
+      - name: Fetch new Redis releases
+        id: fetch-releases
+        run: |
+          RESPONSE=$(curl -s "https://api.github.com/repos/redis/redis/releases?per_page=10")
+          NEW_RELEASES=$(echo "$RESPONSE" | jq -r --arg LAST_CHECK "${{ steps.last-check.outputs.LAST_CHECK }}" \
+            'map(select(.created_at > $LAST_CHECK)) | sort_by(.created_at)')
+
+          echo "New releases:"
+          echo "$NEW_RELEASES" | jq -r '.[].tag_name'
+
+          # Save new releases to a file for subsequent steps
+          echo "$NEW_RELEASES" > new_releases.json
+          echo "new_releases_count=$(echo "$NEW_RELEASES" | jq -r 'length')" >> $GITHUB_OUTPUT
+
+      - name: Process new releases
+        if: steps.fetch-releases.outputs.new_releases_count != '0'
         uses: actions/github-script@v7
         with:
           script: |
-            const { data } = await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'manual-tag.yml',
-              ref: context.ref,
-              inputs: {
-                tag_name: '${{ steps.fetch-release.outputs.latest_release }}',
-                make_latest: false,
-                prerelease: false
-              }
-            });
-            console.log(`Triggered workflow with release: ${{ steps.fetch-release.outputs.latest_release }}`);
+            const newReleases = require('./new_releases.json');
+            for (const release of newReleases) {
+              console.log(`Triggering build for ${release.tag_name}`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'manual-tag.yml',
+                ref: context.ref,
+                inputs: {
+                  tag_name: release.tag_name,
+                  make_latest: false,
+                  prerelease: false
+                }
+              });
+            }
+
+      - name: Update last check timestamp
+        if: steps.fetch-releases.outputs.new_releases_count != '0' && success()
+        run: |
+          LATEST_RELEASE_TS=$(jq -r '[-1] | .[0].created_at' new_releases.json)
+          echo "$LATEST_RELEASE_TS" > .github/last_check.txt
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/last_check.txt
+          git commit -m "Update last check timestamp to $LATEST_RELEASE_TS"
+          git push
