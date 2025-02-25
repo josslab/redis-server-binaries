@@ -2,7 +2,7 @@ name: Check for New Redis Release
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Runs daily at midnight UTC
+    - cron: '30 1 * * *' # Runs daily at 01:30 UTC
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -51,3 +51,14 @@ jobs:
               }
             });
             console.log(`Triggered workflow with release: ${{ steps.fetch-release.outputs.latest_release }}`);
+
+      - name: Notify Telegram - No New Release
+        if: steps.compare-release.outputs.new_release_found == 'false'
+        uses: appleboy/telegram-action@v0.2.0
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ℹ️ Daily Redis Release Check
+            No new releases found today.
+            Last checked version: ${{ needs.check-new-releases.outputs.last_known_release }}
