@@ -26,6 +26,7 @@ jobs:
         run: |
           LAST_KNOWN_RELEASE=$(cat .github/last_known_release.txt || echo "")
           echo "Last known Redis release: $LAST_KNOWN_RELEASE"
+          echo "last_known_release=$LAST_KNOWN_RELEASE" >> $GITHUB_OUTPUT
           if [[ "${{ steps.fetch-release.outputs.latest_release }}" != "$LAST_KNOWN_RELEASE" ]]; then
             echo "New release found: ${{ steps.fetch-release.outputs.latest_release }}"
             echo "new_release_found=true" >> $GITHUB_OUTPUT
@@ -61,4 +62,4 @@ jobs:
           message: |
             ℹ️ Daily Redis Release Check
             No new releases found today.
-            Last checked version: ${{ needs.check-new-releases.outputs.last_known_release }}
+            Last checked version: ${{ steps.compare-release.outputs.last_known_release }}
