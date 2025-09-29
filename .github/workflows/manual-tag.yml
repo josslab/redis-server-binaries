@@ -108,7 +108,7 @@ jobs:
       - name: Setup 32bit
         run: |
           sudo dpkg --add-architecture i386 
-          sudo apt-get update -y && sudo apt-get install -y libc6-dev-i386 libssl-dev:i386 libstdc++-dev:i386
+          sudo apt-get update -y && sudo apt-get install -y libc6-dev-i386 libssl-dev:i386 libstdc++-11-dev:i386
       - name: Make
         run: |
           WORKSPACE=$(pwd)
