@@ -108,7 +108,7 @@ jobs:
       - name: Setup 32bit
         run: |
           sudo dpkg --add-architecture i386 
-          sudo apt-get update -y && sudo apt-get install -y libc6-dev-i386 libssl-dev:i386 libstdc++-11-dev:i386
+          sudo apt-get update -y && sudo apt-get install -y libssl-dev:i386 gcc-multilib g++-multilib libc6-dev-i386 libstdc++6:i386
       - name: Make
         run: |
           WORKSPACE=$(pwd)
@@ -145,7 +145,7 @@ jobs:
           mkdir -p ${{ env.REDIS_DIST }}-build
           tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
-          make CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
+          make CC="aarch64-linux-gnu-gcc" CXX="aarch64-linux-gnu-g++" CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
           cp src/redis-server "$WORKSPACE/${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}"
       - uses: actions/upload-artifact@v4
