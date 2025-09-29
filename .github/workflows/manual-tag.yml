@@ -219,6 +219,12 @@ jobs:
         with:
           path: ${{ env.REDIS_DIST }}-build
           merge-multiple: true
+      
+      - name: Get lastest release body
+        id: get-lastest-release-body
+        run: |
+          BODY_RELEASE=$(curl https://api.github.com/repos/redis/redis/releases/tags/${{ env.RELEASE_VERSION }} | jq -r '.body')
+          echo "body_release=$BODY_RELEASE" >> $GITHUB_OUTPUT
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -226,7 +232,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: ${{ env.RELEASE_VERSION }}
           tag_name: ${{ env.RELEASE_VERSION }}
-          # body_path: redis_latest_body.txt
+          body: ${{ steps.get-lastest-release-body.outputs.body_release }}
           make_latest: ${{ inputs.make_latest }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ env.REDIS_DIST }}-build/*
@@ -249,8 +255,16 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          format: markdown
           message: |
-            🚀 New Redis Release Published!
-            Version: ${{ env.RELEASE_VERSION }}
-            Status: Successfully built and released!
-            GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_VERSION }}
+            🚀 *Redis Server Binaries Released!*
+
+            📦 *Version:* `${{ env.RELEASE_VERSION }}`
+            ✅ *Status:* Successfully built and released
+            🔗 *Download:* [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_VERSION }})
+
+            📋 *What's New:*
+
+            ${{ steps.get-lastest-release-body.outputs.body_release }}
+
+            💡 *Ready to use:* Download the appropriate binary for your platform and start Redis server immediately!
