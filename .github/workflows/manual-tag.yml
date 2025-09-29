@@ -108,7 +108,7 @@ jobs:
       - name: Setup 32bit
         run: |
           sudo dpkg --add-architecture i386 
-          sudo apt-get update -y && sudo apt-get install -y libc6-dev-i386 libssl-dev:i386
+          sudo apt-get update -y && sudo apt-get install -y libc6-dev-i386 libssl-dev:i386 libstdc++-dev:i386
       - name: Make
         run: |
           WORKSPACE=$(pwd)
@@ -126,27 +126,18 @@ jobs:
           path: ${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}
 
   build-linux-aarch64:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04-arm
     env:
       OS: linux
       ARCH: aarch64
-      LIBSSL_DEB_ARM64: http://launchpadlibrarian.net/592161291/libssl-dev_3.0.2-0ubuntu1_arm64.deb
     steps:
       - uses: actions/checkout@v4
       - name: Download source code
         run: |
           curl -o redis-${{env.RELEASE_VERSION}}.tar.gz "${{env.REDIS_SOURCE_DOWNLOAD_URL}}"
-          curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz"
+          curl -L -o upx.tar.xz "https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-arm64_linux.tar.xz"
           mkdir upx
           tar -xf upx.tar.xz -C upx --strip-components 1
-        # After install libssl.deb arm, use apt will be error
-      - name: Setup build
-        run: |
-          curl -o libssl.deb "${{ env.LIBSSL_DEB_ARM64 }}"
-          sudo apt-get update -y && sudo apt-get install -y crossbuild-essential-arm64
-          sudo apt-get remove -y libssl-dev
-          sudo dpkg --add-architecture arm64
-          sudo dpkg -i --force-all libssl.deb
       - name: Make on aarch64
         run: |
           WORKSPACE=$(pwd)
@@ -154,7 +145,7 @@ jobs:
           mkdir -p ${{ env.REDIS_DIST }}-build
           tar -xzf redis-${{ env.RELEASE_VERSION }}.tar.gz
           cd redis-${{ env.RELEASE_VERSION }}/src && ./mkreleasehdr.sh && cd ..
-          make CC="aarch64-linux-gnu-gcc" AR="aarch64-linux-gnu-gcc-ar" RANLIB="aarch64-linux-gnu-gcc-ranlib" CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
+          make CFLAGS="${{env.BASE_CFLAGS}}" REDIS_LDFLAGS="-static -static-libgcc" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           ../upx/upx -9k --lzma src/redis-server
           cp src/redis-server "$WORKSPACE/${{ env.REDIS_DIST }}-build/redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}"
       - uses: actions/upload-artifact@v4
