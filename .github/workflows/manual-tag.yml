@@ -260,16 +260,8 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          format: markdown
           message: |
-            🚀 *Redis Server Binaries Released!*
-
-            📦 *Version:* `${{ env.RELEASE_VERSION }}`
-            ✅ *Status:* Successfully built and released
-            🔗 *Download:* [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_VERSION }})
-
-            📋 *What's New:*
-
-            ${{ steps.get-lastest-release-body.outputs.body_release }}
-
-            💡 *Ready to use:* Download the appropriate binary for your platform and start Redis server immediately!
+            🚀 New Redis Release Published!
+            Version: ${{ env.RELEASE_VERSION }}
+            Status: Successfully built and released!
+            GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_VERSION }}
