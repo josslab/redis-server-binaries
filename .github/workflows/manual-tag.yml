@@ -223,8 +223,12 @@ jobs:
       - name: Get lastest release body
         id: get-lastest-release-body
         run: |
-          BODY_RELEASE=$(curl https://api.github.com/repos/redis/redis/releases/tags/${{ env.RELEASE_VERSION }} | jq -r '.body')
-          echo "body_release=$BODY_RELEASE" >> $GITHUB_OUTPUT
+          BODY_RELEASE=$(curl -s https://api.github.com/repos/redis/redis/releases/tags/${{ env.RELEASE_VERSION }} | jq -r '.body')
+          
+          # Use a specific delimiter (e.g., EOF) to handle multi-line strings
+          echo "body_release<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY_RELEASE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -232,7 +236,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: ${{ env.RELEASE_VERSION }}
           tag_name: ${{ env.RELEASE_VERSION }}
-          body: ${{ steps.get-lastest-release-body.outputs.body_release }}
+          body: |
+            ${{ steps.get-lastest-release-body.outputs.body_release }}
           make_latest: ${{ inputs.make_latest }}
           prerelease: ${{ inputs.prerelease }}
           files: ${{ env.REDIS_DIST }}-build/*
