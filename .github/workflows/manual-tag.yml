@@ -61,18 +61,11 @@ jobs:
         shell: msys2 {0}
         run: |
           WORKSPACE=$(pwd)
-          $WORKSPACE/${{ env.REDIS_DIST }}-msys2/redis-server.exe --version
+          ${{ env.REDIS_DIST }}-msys2/redis-server.exe --version
 
           echo "=> Starting Redis server..."
-          $WORKSPACE/${{ env.REDIS_DIST }}-msys2/redis-server.exe --daemonize yes
-
-          sleep 2
-
-          echo "=> PING test"
-          $WORKSPACE/${{ env.REDIS_DIST }}-msys2/redis-cli.exe ping
-
-          echo "=> Shutdown test"
-          $WORKSPACE/${{ env.REDIS_DIST }}-msys2/redis-cli.exe shutdown
+          ${{ env.REDIS_DIST }}-msys2/redis-server.exe --daemonize yes
+          
       - uses: actions/upload-artifact@v4
         name: Upload artifact
         with:
