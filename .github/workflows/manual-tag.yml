@@ -60,12 +60,10 @@ jobs:
       - name: Smoke Test - Check Redis runtime
         shell: msys2 {0}
         run: |
-          WORKSPACE=$(pwd)
           ${{ env.REDIS_DIST }}-msys2/redis-server.exe --version
 
           echo "=> Starting Redis server..."
           ${{ env.REDIS_DIST }}-msys2/redis-server.exe --daemonize yes
-          
       - uses: actions/upload-artifact@v4
         name: Upload artifact
         with:
