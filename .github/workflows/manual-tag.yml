@@ -53,10 +53,17 @@ jobs:
           make CFLAGS="${{env.BASE_CFLAGS}}" USE_JEMALLOC=no BUILD_TLS=yes redis-server
           find . -mindepth 1 -maxdepth 2 -type f -regex '.*\(\.exe\|\.conf\)' -exec cp -f "{}" "$WORKSPACE/${{ env.REDIS_DIST }}-msys2" \;
           cd $WORKSPACE
-          cp /usr/bin/msys-2.0.dll /usr/bin/msys-crypto-3.dll /usr/bin/msys-ssl-3.dll ${{ env.REDIS_DIST }}-msys2
+          cp /usr/bin/msys-2.0.dll /usr/bin/msys-crypto-3.dll /usr/bin/msys-ssl-3.dll /usr/bin/msys-gcc_s-seh-1.dll /usr/bin/msys-stdc++-6.dll ${{ env.REDIS_DIST }}-msys2
           sed -i 's/pidfile \/var\/run/pidfile ./' ${{ env.REDIS_DIST }}-msys2/redis.conf
           zip -q -r redis-server-${{ env.RELEASE_VERSION }}-${{ env.OS }}-${{ env.ARCH }}.zip ${{ env.REDIS_DIST }}-msys2
         shell: msys2 {0}
+      - name: Smoke Test - Check Redis runtime
+        shell: msys2 {0}
+        run: |
+          echo "=> Testing redis-server version..."
+          ${{ env.REDIS_DIST }}-msys2/redis-server.exe --version
+          
+          echo "=> Smoke test completed successfully!"
       - uses: actions/upload-artifact@v4
         name: Upload artifact
         with:
