@@ -261,14 +261,14 @@ jobs:
           git commit -m "Update last known Redis release to ${{ env.RELEASE_VERSION }}"
           git push
           
-      - name: Notify Telegram - New Release
-        if: success()
-        uses: appleboy/telegram-action@v1.0.1
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            🚀 New Redis Release Published!
-            Version: ${{ env.RELEASE_VERSION }}
-            Status: Successfully built and released!
-            GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_VERSION }}
+      # - name: Notify Telegram - New Release
+      #   if: success()
+      #   uses: appleboy/telegram-action@v1.0.1
+      #   with:
+      #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
+      #     token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      #     message: |
+      #       🚀 New Redis Release Published!
+      #       Version: ${{ env.RELEASE_VERSION }}
+      #       Status: Successfully built and released!
+      #       GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_VERSION }}
