@@ -53,13 +53,13 @@ jobs:
             });
             console.log(`Triggered workflow with release: ${{ steps.fetch-release.outputs.latest_release }}`);
 
-      - name: Notify Telegram - No New Release
-        if: steps.compare-release.outputs.new_release_found == 'false'
-        uses: appleboy/telegram-action@v1.0.1
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          message: |
-            ℹ️ Daily Redis Release Check
-            No new releases found today.
-            Last checked version: ${{ steps.compare-release.outputs.last_known_release }}
+      # - name: Notify Telegram - No New Release
+      #   if: steps.compare-release.outputs.new_release_found == 'false'
+      #   uses: appleboy/telegram-action@v1.0.1
+      #   with:
+      #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
+      #     token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      #     message: |
+      #       ℹ️ Daily Redis Release Check
+      #       No new releases found today.
+      #       Last checked version: ${{ steps.compare-release.outputs.last_known_release }}
